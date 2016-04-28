@@ -1,0 +1,74 @@
+﻿2. 整合 Spring
+1). 加入 shiro 的 jar 包
+2). 加入 Spring 的 jar 包
+3). 在 web.xml 文件中配置 Spring 的 Listener 和 SpringMVC 的 Servlet. 并加入对应的配置文件.
+
+4). 需求: 有两个用户, 分别为 user(user), admin(admin)， 其中 user 可以访问 index.jsp，user.jsp.
+而 admin 可以访问 index.jsp，user.jsp 和 admin.jsp
+index.jsp 不被保护. user.jsp 和 admin.jsp 需要被保护.
+
+5). 在 web.xml 文件中配置 Shiro 的 Filter! 
+Copy From shiro-root-1.2.2\samples\spring\src\main\webapp\WEB-INF\web.xml 
+
+6). 在 Spring 的配置文件中配置 Shiro.
+Copy From shiro-root-1.2.2\samples\spring\src\main\webapp\WEB-INF\applicationContext.xml
+
+①. 配置 CacheManager. 
+	> 实际配置的是 EhCacheManager. 所以需要导入 ehcache 对应的 jar 包和配置文件. 
+	ehcache-core-2.4.3.jar
+	ehcache.xml
+	
+	<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/>
+    </bean>
+	
+②. 配置 Realm. 直接继承 org.apache.shiro.realm.AuthorizingRealm//??
+		
+	// 进行授权(看用户是否有某一个权限)的方法
+	protected AuthorizationInfo doGetAuthorizationInfo(PrincipalCollection arg0) 
+
+	// 进行认证(登陆)的方法
+	protected AuthenticationInfo doGetAuthenticationInfo(AuthenticationToken arg0) throws AuthenticationException
+		
+③. 配置 SecurityManager
+
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="realm" ref="myRealm"/>
+    </bean>
+
+④. 配置 Shiro 的生命周期 Bean 后置处理器. 可以自动的调用 Shiro 在 Spring IOC 容器中 bean 的 init 和 destroy 方法
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+⑤. 配置可以在 Spring 中使用 Shiro 注解的 bean. 但前提是必须配置 LifecycleBeanPostProcessor
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+
+⑥. 配置 ShiroFilter
+
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+    	<!-- 配置 securityManager 属性. -->
+        <property name="securityManager" ref="securityManager"/>
+        <!-- 配置登陆页面. 若某一个资源需要被认证(登陆)后才可以访问, 则 Shiro 会自动的重定向到 loginUrl 指向的页面 -->
+        <property name="loginUrl" value="/login.jsp"/>
+        <!-- 配置没有权限访问某一个资源时的响应页面.  -->
+        <property name="unauthorizedUrl" value="/unauthorized.jsp"/>
+        
+        <!-- 配置受保护的资源 -->
+        <property name="filterChainDefinitions">
+            <value>
+            	<!-- authc: 表示需要认证(登陆)后才可以访问的资源 -->
+                /user.jsp = authc
+                /admin.jsp = authc
+            </value>
+        </property>
+    </bean>
+    
+    注意: 该 filter 的 id 必须和配置在 web.xml 文件中的 shiroFilter 的 filter-name 一致. 
+
+7). 
+
+1. helloworld：直接测试 samples\quickstart

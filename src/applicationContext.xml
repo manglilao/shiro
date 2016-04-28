@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+	
+	<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/>
+    </bean>
+    
+    <bean id="myRealm" 
+    	class="com.atguigu.shiro.realms.MyRealm">
+    	<property name="credentialsMatcher">
+    		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+    			<property name="hashAlgorithmName" value="MD5"></property>
+    			<property name="hashIterations" value="1024"></property>
+    		</bean>
+    	</property>
+    </bean>
+	
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="realm" ref="myRealm"/>
+    </bean>
+    
+    <!-- 配置 Shiro 的生命周期 Bean 后置处理器. 可以自动的调用 Shiro 在 Spring IOC 容器中 bean 的 init 和 destroy 方法 -->
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+    <!-- 配置可以在 Spring 中使用 Shiro 注解的 bean. 但前提是必须配置 LifecycleBeanPostProcessor -->
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+    
+    <!-- 
+    配置实际的 ShiroFilter. 注意: 该 filter 的 id 必须和配置在 web.xml 文件中的 shiroFilter 的 filter-name 一致. 
+    那么实际上在 web.xml 文件中配置的是 DelegatingFilterProxy，DelegatingFilterProxy 实际上是一个代理对象，
+    该代理对象会访问 IOC 容器中 <filter-name> 对应的 Filter 作为实际使用的 Filter. 
+    -->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+    	<!-- 配置 securityManager 属性. -->
+        <property name="securityManager" ref="securityManager"/>
+        <!-- 配置登陆页面. 若某一个资源需要被认证(登陆)后才可以访问, 则 Shiro 会自动的重定向到 loginUrl 指向的页面 -->
+        <property name="loginUrl" value="/login.jsp"/>
+        <!-- 配置没有权限访问某一个资源时的响应页面.  -->
+        <property name="unauthorizedUrl" value="/unauthorized.jsp"/>
+        
+        <!-- 配置受保护的资源 -->
+        <property name="filterChainDefinitions">
+            <value>
+            	<!-- authc: 表示需要认证(登陆)后才可以访问的资源 -->
+            	 /index.jsp = authc
+                /user.jsp = roles[user]
+                /admin.jsp = roles[admin]
+                /logout.jsp=logout
+            </value>
+        </property>
+    </bean>
+    <bean id="myService" class="com.atguigu.shiro.service.MyService">
+    	
+    </bean>
+
+</beans>
